@@ -1,6 +1,8 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const nlp = require('compromise');
 const R = require('ramda');
+const turndown = require('turndown');
 
 if (R.path(['env', 'NODE_ENV'], process) !== 'production') {
     const dotenv = require('dotenv');
@@ -32,6 +34,17 @@ const parsePageHtml = (html, selector) => {
     return text;
 };
 
+const parseText = (text) => {
+    nlp(text);
+};
+
+const htmlToMarkdown = (html, selector) => {
+    const $ = cheerio.load(html);
+    const text = $(selector).html();
+    const turndownService = new turndown();
+    return turndownService.turndown(text);
+};
+
 const main = async () => {
     const settings = getSettings();
 
@@ -44,7 +57,12 @@ const main = async () => {
     }
     
     const text = parsePageHtml(html, R.prop('selector', settings));
+    console.log('# Raw Text');
     console.log(text);
+
+    // const markdown = htmlToMarkdown(html, R.prop('selector', settings));
+    // console.log('# Markdown Text');
+    // console.log(markdown);
 };
 
 if (require.main === module) {
