@@ -10,6 +10,10 @@ A super-simple HTML fetcher/parser to get homework assignments posted online.
    ```sh
    npm install
    ```
+ * Copy ```.env.sample``` and update values
+   ```sh
+   cp .env.sample .env
+   ```
  * Run
    ```sh
    npm start
