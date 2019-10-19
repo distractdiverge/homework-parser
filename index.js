@@ -1,27 +1,51 @@
-const dotenv = require('dotenv');
 const axios = require('axios');
 const cheerio = require('cheerio');
+const R = require('ramda');
 
-dotenv.config();
+if (R.path(['env', 'NODE_ENV'], process) !== 'production') {
+    const dotenv = require('dotenv');
+    dotenv.config();
+}
+
+const getErrorMessage = R.prop('message');
 
 const getSettings = () => ({
-    url: process.env.HOMEWORK_URL,
-    selector: process.env.CONTENT_SELECTOR,
+    url: R.path(['env', 'HOMEWORK_URL'], process),
+    selector: R.path(['env', 'CONTENT_SELECTOR'], process),
 });
 
-const getPage = async (url, selector) => {
-    const res = await axios.get(url);
-    const $ = cheerio.load(res.data);
+const getPageHtml = async (url) => {
+    let response;
+    try {
+        response = await axios.get(url);
+    } catch(error) {
+        console.error(`Error fetching page: ${getErrorMessage(error)}`);
+        return null;
+    }
+    
+    return R.prop('data', response);
+};
 
+const parsePageHtml = (html, selector) => {
+    const $ = cheerio.load(html);
     const text = $(selector).text().trim();
-    console.log(text);
+    return text;
 };
 
 const main = async () => {
     const settings = getSettings();
-    await getPage(settings.url, settings.selector);
-};
 
+    let html;
+    try {
+        html = await getPageHtml(R.prop('url', settings));
+    } catch (error) {
+        console.error(`Error getting page HTML: ${getErrorMessage(error)}`)
+        return;
+    }
+    
+    const text = parsePageHtml(html, R.prop('selector', settings));
+    console.log(text);
+};
 
 if (require.main === module) {
     try {
@@ -30,3 +54,11 @@ if (require.main === module) {
         console.error(error.message);
     }
 }
+
+module.exports = {
+    getErrorMessage,
+    getPageHtml,
+    getSettings,
+    parsePageHtml,
+    main,
+};
