@@ -3,6 +3,7 @@ const cheerio = require('cheerio');
 const nlp = require('compromise');
 const R = require('ramda');
 const turndown = require('turndown');
+const moment = require('moment');
 
 if (R.path(['env', 'NODE_ENV'], process) !== 'production') {
     const dotenv = require('dotenv');
@@ -45,6 +46,28 @@ const htmlToMarkdown = (html, selector) => {
     return turndownService.turndown(text);
 };
 
+const parseDate = (input) => {
+    const date = R.head(input.dates().list);
+    
+    // Get the Month
+    const month = date.month.out('normal');
+    
+    const numericTerms = R.filter(term => 
+        R.propEq('NumericValue', true, term.tags),
+        date.terms);
+    
+    const normalWithLength = R.pathEq(['normal', 'length']);
+    // Get the day
+    const dayTerm = R.find(normalWithLength(2), numericTerms);
+    const day = dayTerm.normal;
+
+    // Get the year
+    const yearTerm = R.find(normalWithLength(4), numericTerms);
+    const year = yearTerm.normal;
+
+    return moment(`${month} ${day} ${year}`, 'MMM DD yyyy');
+};
+
 const main = async () => {
     const settings = getSettings();
 
@@ -59,6 +82,9 @@ const main = async () => {
     const text = parsePageHtml(html, R.prop('selector', settings));
     console.log('# Raw Text');
     console.log(text);
+
+    const date = parseDate(nlp(text).match('Homework for the week of #Date+'));
+    console.log(date.toString());
 
     // const markdown = htmlToMarkdown(html, R.prop('selector', settings));
     // console.log('# Markdown Text');
