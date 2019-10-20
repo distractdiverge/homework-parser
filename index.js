@@ -1,4 +1,5 @@
 const axios = require('axios');
+const chalk = require('chalk');
 const cheerio = require('cheerio');
 const nlp = require('compromise');
 const R = require('ramda');
@@ -35,15 +36,90 @@ const parsePageHtml = (html, selector) => {
     return text;
 };
 
-const parseText = (text) => {
-    nlp(text);
-};
-
 const htmlToMarkdown = (html, selector) => {
     const $ = cheerio.load(html);
     const text = $(selector).html();
     const turndownService = new turndown();
     return turndownService.turndown(text);
+};
+
+const parseSections = (text) => {
+
+    // Skip First Sentence
+    const sections = [
+        {
+            title: 'reading',
+            content: [],
+        },
+        {
+            title: 'math', 
+            content: [],
+        },
+        {
+            title: 'social studies',
+            content: [],
+        },
+        {
+            title: 'spelling', 
+            content: [],
+        },
+    ];
+
+    const sectionTitles = R.map(R.prop('title'), sections);
+
+    const sentences = nlp(text).sentences();
+
+
+    for (let i = 0; i < sentences.length; i++) {
+        let sentence = sentences.list[i];
+
+        // If we found the 'Reading' section; sub-iterate and get all 
+        // the reading sentences, until we find a new section
+
+        if (sentence.match('reading').found) {
+            const content = [];
+            while(sentence && !sentence.match('math').found) {
+                content.push(sentence.out('text'));
+                i++;
+                sentence = sentences.list[i];
+            }
+            sections[0].content = content;
+        }
+
+        if (sentence.match('math').found) {
+            const content = [];
+            while(sentence && !sentence.match('social studies').found) {
+                content.push(sentence.out('text'));
+                i++;
+                sentence = sentences.list[i];
+            }
+            sections[1].content = content;
+        }
+
+        if (sentence.match('social studies').found) {
+            const content = [];
+            while(sentence && !sentence.match('spelling').found) {
+                content.push(sentence.out('text'));
+                i++;
+                sentence = sentences.list[i];
+            }
+            sections[2].content = content;
+        }
+
+        if (sentence.match('spelling').found) {
+            const content = [];
+            while(sentence && i < sentences.length) {
+                content.push(sentence.out('text'));
+                i++;
+                sentence = sentences.list[i];
+            }
+            sections[3].content = content;
+        }
+    }
+
+    console.log(JSON.stringify(sections));
+
+    return sections;
 };
 
 const parseDate = (input) => {
@@ -80,12 +156,18 @@ const main = async () => {
     }
     
     const text = parsePageHtml(html, R.prop('selector', settings));
-    console.log('# Raw Text');
-    console.log(text);
-
     const date = parseDate(nlp(text).match('Homework for the week of #Date+'));
-    console.log(date.toString());
+    console.log(chalk.blue(`# Homework for the week of ${date.format('MM/DD/YYYY')}`));
 
+    const sections = parseSections(text);
+    for( let i = 0; i < sections.length; i++) {
+        const section = sections[i];
+        const title = nlp(section.title).toUpperCase().out('text');
+        console.log(chalk.green(`## ${title}`));
+        console.log(section.content.join(''));
+        console.log('\n');
+    }
+    
     // const markdown = htmlToMarkdown(html, R.prop('selector', settings));
     // console.log('# Markdown Text');
     // console.log(markdown);
