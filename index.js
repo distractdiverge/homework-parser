@@ -189,7 +189,7 @@ module.exports = {
     parseDate,
     parseSections,
     main,
-    homeworkFetcher: (req, res) => {
+    homeworkFetcher: async (req, res) => {
         const settings = main.getSettings();
     
         let output;
