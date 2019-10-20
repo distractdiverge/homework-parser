@@ -183,8 +183,9 @@ if (require.main === module) {
 
 module.exports = {
     getErrorMessage,
-    getPageHtml,
     getSettings,
+    getPageHtml,
     parsePageHtml,
-    main,
+    parseDate,
+    parseSections,
 };
