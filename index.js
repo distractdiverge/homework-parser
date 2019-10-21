@@ -9,6 +9,7 @@ const {
     parseDate,
 } = require('./parsers');
 const { printTitle, printSections, } = require('./output');
+const { getSettings } = require('./settings');
 
 if (R.path(['env', 'NODE_ENV'], process) !== 'production') {
     const dotenv = require('dotenv');
@@ -16,11 +17,6 @@ if (R.path(['env', 'NODE_ENV'], process) !== 'production') {
 }
 
 const getErrorMessage = R.prop('message');
-
-const getSettings = () => ({
-    url: R.path(['env', 'HOMEWORK_URL'], process),
-    selector: R.path(['env', 'CONTENT_SELECTOR'], process),
-});
 
 const main = async () => {
     const settings = getSettings();
