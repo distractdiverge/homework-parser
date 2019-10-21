@@ -13,11 +13,21 @@ const main = async () => {
     const page = await browser.newPage();
     await page.goto(settings.url);
 
-    const element = await page.$(settings.selector);
+    const element = await page.$$(settings.selector + ' span span div');
 
-    const box = await element.boundingBox();
+    const elements = [];
+    for( let i = 0; i < element.length; i++) {
+        const box = await element[i].boundingBox();
+        const text = await element[i].evaluate(node => node.innerText);
 
-    console.log(box);
+        if (text.trim()) {
+            elements.push({
+                box,
+                text: text,
+            });
+        }
+    }
+    console.log(elements);
 
     await browser.close();
 };
