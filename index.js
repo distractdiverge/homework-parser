@@ -11,11 +11,6 @@ const {
 const { printTitle, printSections, } = require('./output');
 const { getSettings } = require('./settings');
 
-if (R.path(['env', 'NODE_ENV'], process) !== 'production') {
-    const dotenv = require('dotenv');
-    dotenv.config();
-}
-
 const getErrorMessage = R.prop('message');
 
 const main = async () => {
