@@ -5,7 +5,8 @@
   "repository": "git@github.com:alexlapinski/homework-parser.git",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start:parse": "node main-parsing.js",
+    "start:cluster": "node main-clustering.js"
   },
   "author": "Alex Lapinski <contact@alexlapinski.name>",
   "license": "MIT",

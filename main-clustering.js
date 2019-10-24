@@ -1,8 +1,7 @@
+const chalk = require('chalk');
 const R = require('ramda');
 const puppeteer = require('puppeteer');
-const clustering = require('density-clustering');
 const hac = require('hierarchical-clustering');
-
 const { getSettings } = require('./settings');
 
 const getTextChunks = async (selector, url) => {
@@ -33,99 +32,91 @@ const getTextChunks = async (selector, url) => {
     return output;
 };
 
+const makePoints = R.map(
+        textChunk => ([
+            R.path(['boundingBox', 'x'], textChunk),
+            R.path(['boundingBox', 'y'], textChunk),
+        ])
+);
+
+const _square = R.curry(Math.pow)(R.__, 2);
+const findDistance = R.pipe(
+    R.zipWith(R.pipe(R.subtract, _square)),
+    R.sum,
+    Math.sqrt,
+);
+
+const findClusters = (textChunks, minClusters = 5) => {
+    const points = makePoints(textChunks);
+       
+    // Single-linkage clustering
+    function linkage(distances) {
+        return Math.min.apply(null, distances);
+    }
+       
+    const levels = hac({
+        input: points,
+        distance: findDistance,
+        linkage: linkage,
+        minClusters: minClusters, // TODO: how to pick this?
+        // TODO: Test out 'maxLinkage'
+    });
+
+    const clusters = R.prop('clusters', R.last(levels));
+    
+    const getTextClusters = R.map(
+        cluster => R.map(
+            index => R.prop('text', textChunks[index]),
+            R.reverse(cluster),
+        ),
+    );
+    
+    return getTextClusters(clusters);
+};
+
+const printTextClusters = 
+    R.forEach(
+        cluster => {
+            console.log(chalk.green('# Section'));
+            R.forEach(
+                line => {
+                    console.log(line);
+                },
+                cluster
+            );
+            console.log('\n');
+        }
+    );
+
 const main = async () => {
     const settings = getSettings();
 
-    let elements;
+    let textChunks;
     try {
-        elements = await getTextChunks(
+        // TODO: Reach cache or fetch
+        textChunks = await getTextChunks(
             R.path(['selectors', 'innerContent'], settings),
             R.prop('url', settings),
         );
     } catch (error) {
         console.error(`Error Getting Bounding Boxes: ${error.message}`);
+        process.exit(-1);
     }
 
-    // console.log(elements);
-
-    // detectClusters(elements);
-
-    // TODO: Detect using HAC ALgorithm
-    const points = makePoints(elements);
-    function distance(a, b) {
-        var d = 0;
-        for (var i = 0; i < a.length; i++) {
-          d += Math.pow(a[i] - b[i], 2);
-        }
-        return Math.sqrt(d);
-      }
-       
-      // Single-linkage clustering
-      function linkage(distances) {
-        return Math.min.apply(null, distances);
-      }
-       
-      const levels = hac({
-        input: points,
-        distance: distance,
-        linkage: linkage,
-        minClusters: 5, // TODO: how to pick this?
-      });
-
-      var clusters = levels[levels.length - 1].clusters;
-        // => [ [ 2 ], [ 3, 1, 0 ] ]
-        const textClusters = R.map(
-            cluster => R.map(
-                index => elements[index].text,
-                R.reverse(cluster)
-            ),
-            clusters
-        );
-
-        console.log(textClusters);
+    const textClusters = findClusters(textChunks);
+    printTextClusters(textClusters);
 };
 
-const makePoints = R.map(
-        element => ([
-            R.path(['boundingBox', 'x'], element),
-            R.path(['boundingBox', 'y'], element),
-        ])
-);
 
-const detctClusters = (elements) => {
-    const points = makePoints(elements)
-
-    let maxClusters = 0;
-    let finalClusters = [];
-    let finalR = 0;
-    let finalP = 0;
-    for( let r = 0; r < 20; r++) {
-        for (let p = 0; p < 20; p++) {
-            console.log (`Using Neighborhood Radius = ${r}; Points in Neighborhood Cluster = ${p}`);
-            const scanner = new clustering.DBSCAN();
-            const clusters = scanner.run(points, r, p);
-            console.log(`Detected ${clusters.length} clusters`);
-            // console.log(`Detected ${scanner.noise.length} noise`);
-
-            if (clusters.length > maxClusters) {
-                finalR = r;
-                finalP = p;
-                finalClusters = clusters;
-                maxClusters = clusters.length;
-            }
-        }
-    }
-
-    for( let i = 0; i < finalClusters.length; i++) {
-        console.log(`# Section ${i}`);
-        const cluster = finalClusters[i];
-        for( let j = 0; j < cluster.length; j++) {
-            console.log(`Line[${j}]: ${elements[j].text}`);
-        }
-        console.log('\n');
-    }
-
-    console.log (`Best Values: r = ${finalR}; p = ${finalP}; #Clusters = ${maxClusters}`);
+if (require.main == module) {
+    main();
 }
 
-main();
+module.exports = {
+    findClusters,
+    findDistance,
+    getTextChunks,
+    main,
+    makePoints,
+
+}
