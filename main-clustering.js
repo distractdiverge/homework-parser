@@ -69,19 +69,20 @@ const main = async () => {
         input: points,
         distance: distance,
         linkage: linkage,
-        minClusters: 5, // only want two clusters
+        minClusters: 5, // TODO: how to pick this?
       });
 
       var clusters = levels[levels.length - 1].clusters;
-        console.log(clusters);
         // => [ [ 2 ], [ 3, 1, 0 ] ]
-        clusters = clusters.map(function (cluster) {
-            return cluster.map(function (index) {
-                return elements[index].text;
-            });
-        });
+        const textClusters = R.map(
+            cluster => R.map(
+                index => elements[index].text,
+                R.reverse(cluster)
+            ),
+            clusters
+        );
 
-        console.log(clusters);
+        console.log(textClusters);
 };
 
 const makePoints = R.map(
